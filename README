@@ -1,0 +1,27 @@
+rgbd2pointcloud
+
+
+1. Introduction
+
+rgbd2pointcloud converts oni files to colored point clouds in the PLY ascii
+format.
+
+2. Building
+
+rgbd2pointcloud requires libcurl and OpenNI2. Install the dependencies and
+follow these steps to build it:
+
+$ mkdir build
+$ cd build
+$ . /path/to/OpenNI/OpenNIDevEnvironment
+$ cmake ..
+$ make
+
+This will create the rgbd2pointcloud executable in your current directory.
+
+3. Usage
+
+$ rgbd2pointcloud INFILE OUTFILE
+
+where INFILE is the oni file you want to process and OUTFILE is the desired
+output location.

@@ -130,7 +130,6 @@ void read_frame(openni::VideoFrameRef &frame, RawData &data) {
 				if(data.d[x+data.resx*y] == 0 || fabs(curavg-depthpix[x+data.resx*y]) < rgbd2point::depth_averaging_threshold) {
 					data.d[x+data.resx*y] += depthpix[x+data.resx*y];
 					data.dframenums[x+data.resx*y]++;
-// 					printf("%ld %d\n", data.d[x+data.resx*y], depthpix[x+data.resx*y]);
 				}		
 				
 			}
@@ -170,14 +169,12 @@ void depth_to_pointcloud(PointCloud &cloud, RawData &raw, openni::VideoStream &d
 				continue;
 			
 			avgdepth = raw.d[x+y*raw.resx]/(float)raw.dframenums[x+y*raw.resx];
-				
-			int clrx, clry;
-			
+							
 			openni::CoordinateConverter::convertDepthToWorld(depthstrm, (float)x, (float)y, avgdepth, &cloud.x[i], &cloud.y[i], &cloud.z[i]);
 						
-			cloud.r[i] = raw.r[clrx+clry*raw.resx]/(float)raw.clrframenum;
-			cloud.g[i] = raw.g[clrx+clry*raw.resx]/(float)raw.clrframenum;
-			cloud.b[i] = raw.b[clrx+clry*raw.resx]/(float)raw.clrframenum;
+			cloud.r[i] = raw.r[x+y*raw.resx]/(float)raw.clrframenum;
+			cloud.g[i] = raw.g[x+y*raw.resx]/(float)raw.clrframenum;
+			cloud.b[i] = raw.b[x+y*raw.resx]/(float)raw.clrframenum;
 			i++;
 		}
 	}
