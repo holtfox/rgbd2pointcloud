@@ -176,6 +176,8 @@ void depth_to_pointcloud(PointCloud &cloud, RawData &raw, openni::VideoStream &d
 			cloud.g[i] = raw.g[x+y*raw.resx]/(float)raw.clrframenum;
 			cloud.b[i] = raw.b[x+y*raw.resx]/(float)raw.clrframenum;
 			i++;
+			
+// 			cloud.z[i]*=-1;
 		}
 	}
 	
