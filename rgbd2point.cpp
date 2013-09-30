@@ -9,17 +9,24 @@ namespace rgbd2point {
 }	
 
 struct RawData {
-	int resx;
-	int resy;
+	// Depth
+	
+	int dresx;
+	int dresy;
+	
+	long *d;
+	int *dframenums; // some pixels are rejected for the average so
+					 // the number of frames is pixel dependent
+	
+	// Color
+	
+	int cresx; 
+	int cresy; 
 	
 	int *r;
 	int *g;
 	int *b;
-	int clrframenum;
-	
-	long *d;
-	int *dframenums;
-	
+	int cframenum;	
 };
 
 struct PointCloud {
@@ -34,27 +41,36 @@ struct PointCloud {
 	int num;
 };
 
-void init_rawdata(RawData *raw, int resx, int resy) {
-	raw->resx = resx;
-	raw->resy = resy;
+void init_rawdata(RawData *raw, int dresx, int dresy, int cresx, int cresy) {
+	raw->dresx = dresx;
+	raw->dresy = dresy;
 	
-	raw->r = new int[resx*resy];
-	raw->g = new int[resx*resy];
-	raw->b = new int[resx*resy];
-	raw->d = new long[resx*resy];
-	raw->dframenums = new int[resx*resy];
+	raw->cresx = cresx;
+	raw->cresy = cresy;
 	
-	for(int y = 0; y < resy; y++) {
-		for(int x = 0; x < resx; x++) {
-			raw->r[x+y*resx] = 0;
-			raw->g[x+y*resx] = 0;
-			raw->b[x+y*resx] = 0;
-			raw->d[x+y*resx] = 0;
-			raw->dframenums[x+y*resx] = 0;
+	raw->r = new int[cresx*cresy];
+	raw->g = new int[cresx*cresy];
+	raw->b = new int[cresx*cresy];
+	
+	raw->d = new long[dresx*dresy];
+	raw->dframenums = new int[dresx*dresy];
+	
+	for(int y = 0; y < cresy; y++) {
+		for(int x = 0; x < cresx; x++) {
+			raw->r[x+y*cresx] = 0;
+			raw->g[x+y*cresx] = 0;
+			raw->b[x+y*cresx] = 0;			
 		}
 	}
 	
-	raw->clrframenum = 0;
+	for(int y = 0; y < dresy; y++) {
+		for(int x = 0; x < dresx; x++) {
+			raw->d[x+y*dresx] = 0;
+			raw->dframenums[x+y*dresx] = 0;
+		}
+	}
+	
+	raw->cframenum = 0;
 }
 
 void init_pointcloud(PointCloud *cloud, int num) {
@@ -106,30 +122,23 @@ void read_frame(openni::VideoFrameRef &frame, RawData &data) {
 	openni::RGB888Pixel *clrpix;
 	int x, y;
 	
-	if(frame.getVideoMode().getResolutionX() != data.resx || frame.getVideoMode().getResolutionY() != data.resy) {
-		printf("Unexpected resolution change (%dx%d -> %dx%d)\n", data.resx, data.resy,
-			   frame.getVideoMode().getResolutionX(), frame.getVideoMode().getResolutionY());
 		
-		exit(3);
-	}
-	
 	int takeframe = 0;
 	
-	switch (frame.getVideoMode().getPixelFormat())
-	{
+	switch (frame.getVideoMode().getPixelFormat()) {
 	case openni::PIXEL_FORMAT_DEPTH_1_MM:
 	case openni::PIXEL_FORMAT_DEPTH_100_UM:
 		depthpix = (openni::DepthPixel*)frame.getData();
-		for(y = 0; y < data.resy; y++) {
-			for(x = 0; x < data.resx; x++) {
-				float curavg = data.d[x+data.resx*y]/(float)data.dframenums[x+data.resx*y];
+		for(y = 0; y < data.dresy; y++) {
+			for(x = 0; x < data.dresx; x++) {
+				float curavg = data.d[x+data.dresx*y]/(float)data.dframenums[x+data.dresx*y];
 				
-				if(depthpix[x+data.resx*y] == 0)
+				if(depthpix[x+data.dresx*y] == 0)
 					continue;
 				
-				if(data.d[x+data.resx*y] == 0 || fabs(curavg-depthpix[x+data.resx*y]) < rgbd2point::depth_averaging_threshold) {
-					data.d[x+data.resx*y] += depthpix[x+data.resx*y];
-					data.dframenums[x+data.resx*y]++;
+				if(data.d[x+data.dresx*y] == 0 || fabs(curavg-depthpix[x+data.dresx*y]) < rgbd2point::depth_averaging_threshold) {
+					data.d[x+data.dresx*y] += depthpix[x+data.dresx*y];
+					data.dframenums[x+data.dresx*y]++;
 				}		
 				
 			}
@@ -137,17 +146,17 @@ void read_frame(openni::VideoFrameRef &frame, RawData &data) {
 		break;
 	case openni::PIXEL_FORMAT_RGB888:
 		clrpix = (openni::RGB888Pixel*)frame.getData();
-		for(y = 0; y < data.resy; y++) {
-			for(x = 0; x < data.resx; x++) {
-				data.r[x+data.resx*y] += clrpix[x+data.resx*y].r;
-				data.g[x+data.resx*y] += clrpix[x+data.resx*y].g;
-				data.b[x+data.resx*y] += clrpix[x+data.resx*y].b;		
+		for(y = 0; y < data.cresy; y++) {
+			for(x = 0; x < data.cresx; x++) {
+				data.r[x+data.cresx*y] += clrpix[x+data.cresx*y].r;
+				data.g[x+data.cresx*y] += clrpix[x+data.cresx*y].g;
+				data.b[x+data.cresx*y] += clrpix[x+data.cresx*y].b;		
 				
 				
 			}
 		}
 		
-		data.clrframenum++;
+		data.cframenum++;
 		break;
 	default:
 		printf("Unknown format\n");
@@ -163,22 +172,32 @@ void depth_to_pointcloud(PointCloud &cloud, RawData &raw, openni::VideoStream &d
 	int clry;
 	int i = 0;
 	
-	for(y = 0; y < raw.resy; y++) {
-		for(x = 0; x < raw.resx; x++) {
-			if(raw.dframenums[x+y*raw.resx] == 0)
+	for(y = 0; y < raw.dresy; y++) {
+		for(x = 0; x < raw.dresx; x++) {
+			if(raw.dframenums[x+y*raw.dresx] == 0)
 				continue;
 			
-			avgdepth = raw.d[x+y*raw.resx]/(float)raw.dframenums[x+y*raw.resx];
+			avgdepth = raw.d[x+y*raw.dresx]/(float)raw.dframenums[x+y*raw.dresx];
 							
 			openni::CoordinateConverter::convertDepthToWorld(depthstrm, (float)x, (float)y, avgdepth, &cloud.x[i], &cloud.y[i], &cloud.z[i]);
-						
-			cloud.r[i] = raw.r[x+y*raw.resx]/(float)raw.clrframenum;
-			cloud.g[i] = raw.g[x+y*raw.resx]/(float)raw.clrframenum;
-			cloud.b[i] = raw.b[x+y*raw.resx]/(float)raw.clrframenum;
+			
+			int cx = x/(float)raw.dresx*raw.cresx;
+			int cy = y/(float)raw.dresy*raw.cresy;
+			
+			if(cx >= raw.cresx)
+				cx--;
+			if(cy >= raw.cresy)
+				cy--;
+			
+			cloud.r[i] = raw.r[cx+cy*raw.cresx]/(float)raw.cframenum;
+			cloud.g[i] = raw.g[cx+cy*raw.cresx]/(float)raw.cframenum;
+			cloud.b[i] = raw.b[cx+cy*raw.cresx]/(float)raw.cframenum;
 			i++;
 			
 // 			cloud.z[i]*=-1;
 		}
+		
+		printf("\r%.1f%%", y/(float)(raw.dresy-1)*100.0);
 	}
 	
 	cloud.num = i;
@@ -247,7 +266,7 @@ int main(int argc, char **argv) {
 	}
 	
 	RawData raw;
-	init_rawdata(&raw, depth.getVideoMode().getResolutionX(), depth.getVideoMode().getResolutionY());
+	init_rawdata(&raw, depth.getVideoMode().getResolutionX(), depth.getVideoMode().getResolutionY(), color.getVideoMode().getResolutionX(), color.getVideoMode().getResolutionY());
 				 
 	
 	openni::VideoFrameRef frame;
@@ -281,9 +300,11 @@ int main(int argc, char **argv) {
 	}
 		
 	PointCloud cloud;
-	init_pointcloud(&cloud, raw.resx*raw.resy);
+	init_pointcloud(&cloud, raw.dresx*raw.dresy);
 	depth_to_pointcloud(cloud, raw, depth, color);
 	export_to_ply(argv[2], cloud);
+	
+	printf("\nExtracted to point cloud.\n");
 	
 	free_rawdata(&raw);
 	free_pointcloud(&cloud);
